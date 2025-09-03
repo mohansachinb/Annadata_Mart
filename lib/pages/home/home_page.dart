@@ -1,57 +1,202 @@
 import 'package:flutter/material.dart';
-import 'package:convex_bottom_bar/convex_bottom_bar.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: BottomNavExample(),
-    );
+    return MaterialApp(debugShowCheckedModeBanner: false, home: HomePage());
   }
 }
 
-class BottomNavExample extends StatefulWidget {
-  const BottomNavExample({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<BottomNavExample> createState() => _BottomNavExampleState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _BottomNavExampleState extends State<BottomNavExample> {
+class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  String _username = "Loading...";
+  bool _isLoading = true;
 
-  final List<Widget> _pages = const [
-    Center(child: Text("🏠 Home Page", style: TextStyle(fontSize: 22))),
-    Center(child: Text("📚 Store Page", style: TextStyle(fontSize: 22))),
-    Center(child: Text("🔍 Find Page", style: TextStyle(fontSize: 22))),
-    Center(child: Text("👤 Profile Page", style: TextStyle(fontSize: 22))),
+  // Only 3 pages for bottom navigation: Home, Profile, Settings
+  final List<Widget> _pages = [
+    const Center(child: Text("Home Page", style: TextStyle(fontSize: 22))),
+    const Center(child: Text("Profile Page", style: TextStyle(fontSize: 22))),
+    const Center(child: Text("Settings Page", style: TextStyle(fontSize: 22))),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsername();
+  }
+
+  Future<void> _fetchUsername() async {
+    try {
+      // Replace 'user123' with your actual user ID
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc('user123')
+          .get();
+
+      if (userDoc.exists && userDoc.data() != null) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        setState(() {
+          _username = userData['username'] ?? 'User';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _username = 'User';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _username = 'Error loading';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
-      bottomNavigationBar: ConvexAppBar(
-        style: TabStyle.reactCircle,
-        backgroundColor: Colors.deepPurple, // 🔹 Background = deepPurple
-        color: Colors.black, // 🔹 Inactive icons/text = black
-        activeColor: Colors.white, // 🔹 Active icons/text = white
-        elevation: 5,
-        items: const [
-          TabItem(icon: Icons.home, title: 'Home'),
-          TabItem(icon: Icons.book, title: 'Store'),
-          TabItem(icon: Icons.search, title: 'Find'),
-          TabItem(icon: Icons.person, title: 'Profile'),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () {
+            Scaffold.of(context).openDrawer();
+          },
+        ),
+        title: const Text('My App'),
+        backgroundColor: Colors.deepPurple,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Row(
+              children: [
+                const Icon(Icons.person, color: Colors.white),
+                const SizedBox(width: 8),
+                _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        _username,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+              ],
+            ),
+          ),
         ],
-        initialActiveIndex: 0,
-        onTap: (int i) {
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.deepPurple),
+              child: Text(
+                'Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
+            ),
+            // KEEP ALL MENU ITEMS IN DRAWER
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Home'),
+              onTap: () {
+                setState(() {
+                  _currentIndex = 0; // Home page
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.book),
+              title: const Text('Store'),
+              onTap: () {
+                // Store functionality - you can add navigation or other actions
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.search),
+              title: const Text('Find'),
+              onTap: () {
+                // Find functionality - you can add navigation or other actions
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              onTap: () {
+                setState(() {
+                  _currentIndex = 1; // Profile page
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () {
+                setState(() {
+                  _currentIndex = 2; // Settings page
+                });
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.help),
+              title: const Text('Help'),
+              onTap: () {
+                // Help functionality
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+      body: _pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
           setState(() {
-            _currentIndex = i;
+            _currentIndex = index;
           });
         },
+        items: const [
+          // ONLY 3 ITEMS IN BOTTOM NAVIGATION
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+        backgroundColor: Colors.deepPurple,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
       ),
     );
   }
